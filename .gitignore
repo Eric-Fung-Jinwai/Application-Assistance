@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# Data / generated stores
+data/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+#Helper files
+*.log
+TECHNICAL_TODO.md
+TODO_Evidence_Aware_Career_Application_Assistant.md
