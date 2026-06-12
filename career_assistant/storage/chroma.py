@@ -73,6 +73,19 @@ def query_embeddings(
 ) -> dict:
     """Nearest-neighbour query by a single precomputed vector. Result ``ids``/
     ``distances`` are keyed back to SQLite by the stored id (e.g. ``bullet_id``)."""
-    return collection.query(
-        query_embeddings=[embedding], n_results=n_results, where=where
-    )
+    return collection.query(query_embeddings=[embedding], n_results=n_results, where=where)
+
+
+def existing_ids(collection: Collection, *, where: dict) -> list[str]:
+    """Return the ids of all stored vectors whose metadata matches ``where``.
+
+    Used to find chunks to prune when re-indexing an entity with fewer items than a
+    previous run (see ``jd/embeddings.py``)."""
+    return collection.get(where=where).get("ids", [])
+
+
+def delete_embeddings(collection: Collection, *, ids: list[str]) -> None:
+    """Delete vectors by id. No-op for an empty list (Chroma rejects empty deletes)."""
+    if not ids:
+        return
+    collection.delete(ids=ids)
