@@ -176,6 +176,7 @@ def create_suggestion(
     embedding_similarity: float | None = None,
     integrity_score: float | None = None,
     integrity_band: IntegrityBand | str | None = None,
+    integrity_flags: dict | None = None,
     status: SuggestionStatus | str = SuggestionStatus.pending,
 ) -> TailoringSuggestionRow:
     row = TailoringSuggestionRow(
@@ -187,6 +188,7 @@ def create_suggestion(
         embedding_similarity=embedding_similarity,
         integrity_score=integrity_score,
         integrity_band=_enum_value(integrity_band) if integrity_band is not None else None,
+        integrity_flags_json=integrity_flags or None,
         status=_enum_value(status),
     )
     session.add(row)

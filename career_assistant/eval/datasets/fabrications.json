@@ -1,0 +1,70 @@
+[
+  {
+    "name": "led_team_of_10",
+    "label": "fabrication",
+    "source": "Contributed to the backend team's services",
+    "tailored": "Led a team of 10 engineers building backend services",
+    "llm_judgment": 0.10,
+    "embedding_similarity": 0.25,
+    "unsupported_claims": ["led a team of 10 engineers"]
+  },
+  {
+    "name": "invented_metric",
+    "label": "fabrication",
+    "source": "Improved the checkout flow",
+    "tailored": "Improved checkout conversion by 47%",
+    "llm_judgment": 0.15,
+    "embedding_similarity": 0.40,
+    "unsupported_metrics": ["47%"]
+  },
+  {
+    "name": "invented_technology",
+    "label": "fabrication",
+    "source": "Built REST APIs in Python",
+    "tailored": "Architected distributed streaming systems with Kafka and Spark",
+    "llm_judgment": 0.20,
+    "embedding_similarity": 0.30,
+    "unsupported_technologies": ["Kafka", "Spark"]
+  },
+  {
+    "name": "invented_responsibility",
+    "label": "fabrication",
+    "source": "Wrote unit tests for the payments module",
+    "tailored": "Owned the entire QA organization and its hiring",
+    "llm_judgment": 0.10,
+    "embedding_similarity": 0.20,
+    "unsupported_responsibilities": ["owned the entire QA organization", "hiring"]
+  },
+  {
+    "name": "faithful_reword",
+    "label": "faithful",
+    "source": "Reduced API latency by 30% via query optimization",
+    "tailored": "Optimized database queries to cut API latency by 30%",
+    "llm_judgment": 0.95,
+    "embedding_similarity": 0.90
+  },
+  {
+    "name": "faithful_keyword_insert",
+    "label": "faithful",
+    "source": "Built data pipelines in Python",
+    "tailored": "Engineered Python data pipelines for analytics",
+    "llm_judgment": 0.90,
+    "embedding_similarity": 0.88
+  },
+  {
+    "name": "faithful_stronger_verb",
+    "label": "faithful",
+    "source": "Led the migration to Kubernetes",
+    "tailored": "Drove the production migration to Kubernetes",
+    "llm_judgment": 0.92,
+    "embedding_similarity": 0.85
+  },
+  {
+    "name": "faithful_mentorship",
+    "label": "faithful",
+    "source": "Mentored two junior engineers",
+    "tailored": "Mentored junior engineers and supported their growth",
+    "llm_judgment": 0.85,
+    "embedding_similarity": 0.80
+  }
+]

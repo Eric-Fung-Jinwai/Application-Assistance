@@ -172,6 +172,20 @@ class IntegrityResult(BaseModel):
     unsupported_metrics: list[str] = Field(default_factory=list)
     unsupported_responsibilities: list[str] = Field(default_factory=list)
 
+    def unsupported(self) -> dict[str, list[str]]:
+        """Non-empty unsupported-* flag lists, keyed by category — what the reviewer sees.
+
+        Returns an empty dict when nothing was flagged. Persisted with the suggestion so the
+        Phase 10 review panel can show *why* a rewrite is risky after reload.
+        """
+        categories = {
+            "unsupported_claims": self.unsupported_claims,
+            "unsupported_technologies": self.unsupported_technologies,
+            "unsupported_metrics": self.unsupported_metrics,
+            "unsupported_responsibilities": self.unsupported_responsibilities,
+        }
+        return {category: items for category, items in categories.items() if items}
+
 
 class TailoringSuggestion(BaseModel):
     """An evidence-aware rewrite of a single bullet for a specific JD (Phase 8)."""

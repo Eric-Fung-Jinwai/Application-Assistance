@@ -128,6 +128,9 @@ class TailoringSuggestionRow(Base):
     integrity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     # domain.IntegrityBand: safe | moderate | aggressive | high_risk
     integrity_band: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Non-empty unsupported-* flag lists by category (IntegrityResult.unsupported());
+    # kept so the Phase 10 review panel can explain WHY a suggestion is risky after reload.
+    integrity_flags_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # domain.SuggestionStatus: pending | accepted | rejected | customized
     status: Mapped[str] = mapped_column(String, default="pending")
     created_at: Mapped[datetime] = mapped_column(default=_now)

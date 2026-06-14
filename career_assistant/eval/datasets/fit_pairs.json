@@ -1,0 +1,173 @@
+[
+  {
+    "name": "swe_strong",
+    "role": "SWE",
+    "expected_band": "strong",
+    "resume": {
+      "skills": ["Python", "SQL", "Docker", "Kubernetes", "AWS"],
+      "experience": [
+        {"title": "Software Engineer", "company": "Acme", "start_date": "2015", "end_date": "2023",
+         "bullets": ["Built Python services", "Ran the SQL data layer"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "SQL"],
+      "preferred_skills": ["Docker", "AWS"],
+      "seniority": "mid",
+      "years_experience": 4
+    }
+  },
+  {
+    "name": "swe_stretch",
+    "role": "SWE",
+    "expected_band": "weak",
+    "resume": {
+      "skills": ["HTML", "CSS", "JavaScript"],
+      "experience": [
+        {"title": "Junior Developer", "company": "Shop", "start_date": "2022", "end_date": "2023",
+         "bullets": ["Styled marketing pages"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "Go", "Kubernetes"],
+      "seniority": "senior",
+      "years_experience": 6
+    }
+  },
+  {
+    "name": "ai_eng_strong",
+    "role": "AI-Eng",
+    "expected_band": "strong",
+    "resume": {
+      "skills": ["Python", "PyTorch", "TensorFlow", "Machine Learning", "Docker"],
+      "experience": [
+        {"title": "ML Engineer", "company": "Vision", "start_date": "2017", "end_date": "2024",
+         "bullets": ["Trained PyTorch models", "Shipped ML services in Docker"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "PyTorch"],
+      "preferred_skills": ["Machine Learning"],
+      "seniority": "senior",
+      "years_experience": 5
+    }
+  },
+  {
+    "name": "ai_pm_moderate",
+    "role": "AI-PM",
+    "expected_band": "moderate",
+    "resume": {
+      "skills": ["Product Management", "Roadmapping", "SQL", "A/B Testing"],
+      "experience": [
+        {"title": "Product Manager", "company": "Grid", "start_date": "2019", "end_date": "2024",
+         "bullets": ["Owned the analytics roadmap", "Ran A/B Testing programs"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Product Management", "Machine Learning", "Python"],
+      "preferred_skills": ["A/B Testing", "SQL"],
+      "seniority": "mid",
+      "years_experience": 8
+    }
+  },
+  {
+    "name": "ds_strong",
+    "role": "DS",
+    "expected_band": "strong",
+    "resume": {
+      "skills": ["Python", "R", "SQL", "Machine Learning", "Statistics", "Pandas"],
+      "experience": [
+        {"title": "Data Scientist", "company": "Insight", "start_date": "2016", "end_date": "2023",
+         "bullets": ["Built ML models in Python", "Owned the Statistics review"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "SQL", "Statistics"],
+      "preferred_skills": ["R", "Pandas"],
+      "seniority": "mid",
+      "years_experience": 3
+    }
+  },
+  {
+    "name": "ds_weak",
+    "role": "DS",
+    "expected_band": "weak",
+    "resume": {
+      "skills": ["Excel", "Tableau"],
+      "experience": [
+        {"title": "Analyst", "company": "Retail", "start_date": "2023", "end_date": "2024",
+         "bullets": ["Built Excel dashboards"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "Machine Learning", "SQL", "Statistics"],
+      "seniority": "senior",
+      "years_experience": 5
+    }
+  },
+  {
+    "name": "swe_skill_gap_moderate",
+    "role": "SWE",
+    "expected_band": "moderate",
+    "resume": {
+      "skills": ["Python", "Django", "SQL"],
+      "experience": [
+        {"title": "Backend Engineer", "company": "Mid", "start_date": "2018", "end_date": "2023",
+         "bullets": ["Built Django backends", "Owned the SQL schema"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "Go", "Kubernetes", "SQL"],
+      "preferred_skills": ["Docker"],
+      "seniority": "mid",
+      "years_experience": 4
+    }
+  },
+  {
+    "name": "empty_jd_neutral",
+    "role": "SWE",
+    "expected_band": "moderate",
+    "resume": {
+      "skills": ["Python"],
+      "experience": [
+        {"title": "Engineer", "company": "Co", "start_date": "2019", "end_date": "2024", "bullets": ["x"]}
+      ]
+    },
+    "jd": {}
+  },
+  {
+    "name": "ai_eng_overqualified",
+    "role": "AI-Eng",
+    "expected_band": "strong",
+    "resume": {
+      "skills": ["Python", "PyTorch", "Kubernetes", "MLOps"],
+      "experience": [
+        {"title": "Staff ML Engineer", "company": "Big", "start_date": "2010", "end_date": "2024",
+         "bullets": ["Led ML platform", "Built PyTorch training infra"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python"],
+      "preferred_skills": ["PyTorch"],
+      "seniority": "junior",
+      "years_experience": 1
+    }
+  },
+  {
+    "name": "ds_partial_moderate",
+    "role": "DS",
+    "expected_band": "moderate",
+    "resume": {
+      "skills": ["Python", "SQL", "Machine Learning"],
+      "experience": [
+        {"title": "Junior Data Scientist", "company": "Seed", "start_date": "2021", "end_date": "2024",
+         "bullets": ["Built ML prototypes in Python"]}
+      ]
+    },
+    "jd": {
+      "required_skills": ["Python", "SQL", "Machine Learning", "Spark"],
+      "seniority": "senior",
+      "years_experience": 8
+    }
+  }
+]
