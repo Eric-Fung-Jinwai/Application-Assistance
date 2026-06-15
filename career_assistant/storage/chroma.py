@@ -48,3 +48,44 @@ def get_collection(client: ClientAPI, name: str) -> Collection:
         msg = f"Unknown collection {name!r}; expected one of {COLLECTIONS}."
         raise ValueError(msg)
     return client.get_or_create_collection(name=name, metadata={"hnsw:space": "cosine"})
+
+
+def upsert_embeddings(
+    collection: Collection,
+    *,
+    ids: list[str],
+    embeddings: list[list[float]],
+    metadatas: list[dict],
+) -> None:
+    """Upsert precomputed vectors. We embed via our own ``EmbeddingClient`` seam, so
+    vectors are always passed in explicitly (never Chroma's default embedder)."""
+    if not ids:
+        return
+    collection.upsert(ids=ids, embeddings=embeddings, metadatas=metadatas)
+
+
+def query_embeddings(
+    collection: Collection,
+    *,
+    embedding: list[float],
+    n_results: int = 5,
+    where: dict | None = None,
+) -> dict:
+    """Nearest-neighbour query by a single precomputed vector. Result ``ids``/
+    ``distances`` are keyed back to SQLite by the stored id (e.g. ``bullet_id``)."""
+    return collection.query(query_embeddings=[embedding], n_results=n_results, where=where)
+
+
+def existing_ids(collection: Collection, *, where: dict) -> list[str]:
+    """Return the ids of all stored vectors whose metadata matches ``where``.
+
+    Used to find chunks to prune when re-indexing an entity with fewer items than a
+    previous run (see ``jd/embeddings.py``)."""
+    return collection.get(where=where).get("ids", [])
+
+
+def delete_embeddings(collection: Collection, *, ids: list[str]) -> None:
+    """Delete vectors by id. No-op for an empty list (Chroma rejects empty deletes)."""
+    if not ids:
+        return
+    collection.delete(ids=ids)

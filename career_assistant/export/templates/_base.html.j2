@@ -1,0 +1,104 @@
+{#-
+  Shared resume structure (Phase 12). Concrete templates (ats/technical/pm/modern) extend this
+  and override only {% block style %}. Single-column, semantic markup, real selectable text —
+  no layout tables or rasterized text, so it stays ATS-parseable. Page-break rules keep a role
+  from splitting across pages while still allowing multi-page output.
+-#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ doc.name }}</title>
+<style>
+  * { box-sizing: border-box; }
+  @page { size: A4; margin: 18mm 16mm; }
+  body { margin: 0; }
+  h1 { margin: 0 0 2px 0; }
+  section { margin-top: 14px; }
+  .entry { margin-bottom: 10px; page-break-inside: avoid; }
+  .entry-head { display: flex; justify-content: space-between; gap: 12px; }
+  ul { margin: 4px 0 0 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .dates { white-space: nowrap; }
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ doc.name }}</h1>
+</header>
+
+{% if doc.skills %}
+<section class="skills">
+  <h2>Skills</h2>
+  <p>{{ doc.skills | join(" · ") }}</p>
+</section>
+{% endif %}
+
+{% if doc.experience or doc.extra_experience %}
+<section class="experience">
+  <h2>Experience</h2>
+  {% for role in doc.experience %}
+  <div class="entry">
+    <div class="entry-head">
+      <strong>{{ role.title }}{% if role.company %} — {{ role.company }}{% endif %}</strong>
+      {% if role.start_date or role.end_date %}
+      <span class="dates">{{ role.start_date or "" }}{% if role.end_date %} – {{ role.end_date }}{% endif %}</span>
+      {% endif %}
+    </div>
+    {% if role.bullets %}
+    <ul>{% for b in role.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if doc.extra_experience %}
+  <ul>{% for b in doc.extra_experience %}<li>{{ b }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if doc.projects or doc.extra_projects %}
+<section class="projects">
+  <h2>Projects</h2>
+  {% for proj in doc.projects %}
+  <div class="entry">
+    <strong>{{ proj.name }}</strong>
+    {% if proj.description %}<div class="desc">{{ proj.description }}</div>{% endif %}
+    {% if proj.bullets %}
+    <ul>{% for b in proj.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if doc.extra_projects %}
+  <ul>{% for b in doc.extra_projects %}<li>{{ b }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if doc.education %}
+<section class="education">
+  <h2>Education</h2>
+  {% for ed in doc.education %}
+  <div class="entry">
+    <div class="entry-head">
+      <strong>{{ ed.institution }}</strong>
+      {% if ed.start_date or ed.end_date %}
+      <span class="dates">{{ ed.start_date or "" }}{% if ed.end_date %} – {{ ed.end_date }}{% endif %}</span>
+      {% endif %}
+    </div>
+    {% if ed.degree or ed.field_of_study %}
+    <div>{{ ed.degree }}{% if ed.degree and ed.field_of_study %}, {% endif %}{{ ed.field_of_study }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if doc.certifications %}
+<section class="certifications">
+  <h2>Certifications</h2>
+  <ul>{% for c in doc.certifications %}<li>{{ c }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+</body>
+</html>

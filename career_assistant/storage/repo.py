@@ -11,6 +11,7 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from career_assistant.domain import IntegrityBand, SuggestionStatus, VersionType
+from career_assistant.storage.migrations import run_migrations
 from career_assistant.storage.models import (
     JD,
     Base,
@@ -25,8 +26,15 @@ from career_assistant.storage.models import (
 
 
 def create_db(engine: Engine) -> None:
-    """Create all tables on ``engine`` (idempotent)."""
+    """Create all tables on ``engine``, then bring an existing schema current (idempotent).
+
+    ``create_all`` only creates *missing* tables, so on a database from an earlier phase it
+    won't add columns introduced later (``lineage_id``, ``integrity_flags_json``).
+    ``run_migrations`` fills those gaps and backfills, so opening an old DB upgrades it in place
+    rather than failing with ``no such column``. Both steps are idempotent (no-op on a fresh DB).
+    """
     Base.metadata.create_all(engine)
+    run_migrations(engine)
 
 
 # --- Users ------------------------------------------------------------------------
@@ -87,6 +95,7 @@ def add_bullet(
     original_text: str,
     current_text: str | None = None,
     keywords: list[str] | None = None,
+    lineage_id: str | None = None,
 ) -> BulletRow:
     bullet = BulletRow(
         resume_version_id=resume_version_id,
@@ -96,6 +105,10 @@ def add_bullet(
         current_text=current_text if current_text is not None else original_text,
         keywords_json=keywords,
     )
+    # New bullets self-root (column default mints a fresh lineage_id); copies pass the
+    # parent's so the lineage carries across versions.
+    if lineage_id is not None:
+        bullet.lineage_id = lineage_id
     session.add(bullet)
     session.flush()
     return bullet
@@ -176,6 +189,7 @@ def create_suggestion(
     embedding_similarity: float | None = None,
     integrity_score: float | None = None,
     integrity_band: IntegrityBand | str | None = None,
+    integrity_flags: dict | None = None,
     status: SuggestionStatus | str = SuggestionStatus.pending,
 ) -> TailoringSuggestionRow:
     row = TailoringSuggestionRow(
@@ -187,6 +201,7 @@ def create_suggestion(
         embedding_similarity=embedding_similarity,
         integrity_score=integrity_score,
         integrity_band=_enum_value(integrity_band) if integrity_band is not None else None,
+        integrity_flags_json=integrity_flags or None,
         status=_enum_value(status),
     )
     session.add(row)
