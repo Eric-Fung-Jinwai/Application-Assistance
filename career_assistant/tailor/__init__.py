@@ -7,6 +7,7 @@ from career_assistant.tailor.integrity import (
 )
 from career_assistant.tailor.tailor import (
     generate_suggestions,
+    refine_bullet,
     rewrite_bullet,
     select_candidate_bullets,
     tailor_bullet,
@@ -17,6 +18,7 @@ __all__ = [
     "compute_integrity_score",
     "generate_suggestions",
     "judge_integrity",
+    "refine_bullet",
     "rewrite_bullet",
     "select_candidate_bullets",
     "tailor_bullet",

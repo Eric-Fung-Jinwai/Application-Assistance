@@ -40,6 +40,9 @@ def embed_and_upsert_bullets(
         {
             "bullet_id": b.id,
             "resume_version_id": b.resume_version_id,
+            # Stable cross-version identity (Phase 9) — lets vectors be filtered/debugged by
+            # logical bullet, not just by the per-version row id.
+            "lineage_id": b.lineage_id,
             "section": b.section,
         }
         for b in bullets

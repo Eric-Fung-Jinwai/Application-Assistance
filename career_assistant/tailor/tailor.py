@@ -80,6 +80,53 @@ def rewrite_bullet(
     return str(suggested), str(reasoning)
 
 
+REFINE_SYSTEM = """You refine ONE already-tailored resume bullet to follow a user's \
+REFINEMENT INSTRUCTION (e.g. "make it shorter", "more PM-oriented", "emphasize Docker", \
+"highlight leadership"), using ALLOWED operations ONLY:
+- stronger, more active wording
+- surfacing keywords/skills the ORIGINAL EVIDENCE already demonstrates
+- reordering, condensing, or shifting emphasis for impact
+
+The instruction NEVER licenses adding anything the original evidence does not support:
+- no new skills, technologies, or tools
+- no new metrics or numbers
+- no new responsibilities or scope
+If the instruction asks to emphasise something the evidence does not support, do NOT invent it.
+
+Return ONLY a JSON object with exactly these keys:
+- suggested_text: string — the refined bullet
+- reasoning: string — one sentence on what you changed and why
+"""
+
+
+def refine_bullet(
+    source_text: str,
+    current_text: str,
+    instruction: str,
+    *,
+    llm: LLMClient | None = None,
+) -> tuple[str, str]:
+    """Refine an existing tailored bullet per a chat ``instruction``, staying grounded.
+
+    ``source_text`` is the original evidence (the integrity anchor); ``current_text`` is the
+    suggestion being refined. Returns ``(suggested_text, reasoning)``. On a garbled response it
+    falls back to ``current_text`` (a safe no-op) rather than reverting or emitting anything
+    unvetted. The caller is expected to re-run integrity scoring on the result before persisting.
+    """
+    from career_assistant.llm.factory import get_llm_client
+
+    client = llm or get_llm_client()
+    raw = client.complete(
+        REFINE_SYSTEM,
+        _refine_user(source_text, current_text, instruction),
+        json_schema=REWRITE_SCHEMA,
+    )
+    data = _coerce_rewrite(raw)
+    suggested = data.get("suggested_text") or current_text
+    reasoning = data.get("reasoning") or ""
+    return str(suggested), str(reasoning)
+
+
 def tailor_bullet(
     *,
     bullet_id: str,
@@ -201,6 +248,14 @@ def _jd_requirements(jd: ParsedJD) -> list[str]:
             seen.add(text.lower())
             ordered.append(text)
     return ordered
+
+
+def _refine_user(source_text: str, current_text: str, instruction: str) -> str:
+    return (
+        f"ORIGINAL EVIDENCE (never exceed what this supports):\n{source_text}\n\n"
+        f"CURRENT BULLET:\n{current_text}\n\n"
+        f"REFINEMENT INSTRUCTION:\n{instruction}"
+    )
 
 
 def _rewrite_user(source_text: str, targets: list[str]) -> str:

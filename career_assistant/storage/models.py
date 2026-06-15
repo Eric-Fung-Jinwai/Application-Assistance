@@ -15,7 +15,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -77,9 +77,17 @@ class BulletRow(Base):
     vector (collection ``resume_bullets``), tailoring suggestions, and edit history."""
 
     __tablename__ = "bullets"
+    # A logical bullet (lineage) appears at most once per version snapshot — guards the
+    # version-copy path against accidentally duplicating a lineage within one version.
+    __table_args__ = (UniqueConstraint("resume_version_id", "lineage_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     resume_version_id: Mapped[str] = mapped_column(ForeignKey("resume_versions.id"))
+    # Stable identity for "the same bullet" across version snapshots: an original bullet
+    # self-roots with a fresh id; every copy inherits the parent's. Edits/suggestions target
+    # a bullet by lineage, so they survive a version change regardless of position — and
+    # remain valid even when bullets are later added/removed/reordered.
+    lineage_id: Mapped[str] = mapped_column(String, default=_uuid, index=True)
     section: Mapped[str] = mapped_column(String)
     order_index: Mapped[int] = mapped_column(Integer)
     original_text: Mapped[str] = mapped_column(Text)

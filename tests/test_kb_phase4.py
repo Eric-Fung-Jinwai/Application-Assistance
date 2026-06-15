@@ -101,6 +101,7 @@ def test_build_kb_populates_and_queries(session, collection):
     meta = res["metadatas"][0][0]
     assert meta["bullet_id"] == target.id
     assert meta["resume_version_id"] == version.id
+    assert meta["lineage_id"] == target.lineage_id
     assert meta["section"] == "experience"
 
 

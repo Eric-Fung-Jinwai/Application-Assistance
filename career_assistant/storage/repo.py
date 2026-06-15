@@ -87,6 +87,7 @@ def add_bullet(
     original_text: str,
     current_text: str | None = None,
     keywords: list[str] | None = None,
+    lineage_id: str | None = None,
 ) -> BulletRow:
     bullet = BulletRow(
         resume_version_id=resume_version_id,
@@ -96,6 +97,10 @@ def add_bullet(
         current_text=current_text if current_text is not None else original_text,
         keywords_json=keywords,
     )
+    # New bullets self-root (column default mints a fresh lineage_id); copies pass the
+    # parent's so the lineage carries across versions.
+    if lineage_id is not None:
+        bullet.lineage_id = lineage_id
     session.add(bullet)
     session.flush()
     return bullet
