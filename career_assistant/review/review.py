@@ -130,6 +130,68 @@ def accept_suggestion(
     return ReviewOutcome(_ACTION_ACCEPT, row, new_version, created_version=True)
 
 
+def accept_suggestions(
+    session: Session,
+    *,
+    suggestion_ids: list[str],
+    base_version_id: str | None = None,
+    embedder: EmbeddingClient | None = None,
+    collection=None,
+) -> ReviewOutcome:
+    """Accept several pending suggestions into **one** ``accepted`` child version.
+
+    This is the batch path behind "Accept all": instead of N versions + N re-embeds + N commits
+    (one per click), it applies every suggestion's edit to a single child, logs each, and
+    re-embeds once. Each suggestion must be pending and its bullet lineage must exist in the base
+    (default: the first suggestion's own version). If two suggestions target the same lineage (rare
+    — the tailor emits one per bullet), the higher-integrity rewrite wins.
+    """
+    if not suggestion_ids:
+        raise ValueError("no suggestions to accept")
+    rows = [_require_pending(_require_suggestion(session, sid)) for sid in suggestion_ids]
+    bullets = {row.id: _require_bullet(session, row.bullet_id) for row in rows}
+    base_id = base_version_id or next(iter(bullets.values())).resume_version_id
+    head = bullets_by_lineage(session, base_id)
+    if head == {} and session.get(ResumeVersion, base_id) is None:
+        raise ValueError(f"unknown version {base_id!r}")
+
+    # Resolve edits by lineage; on a (rare) lineage clash keep the higher-integrity rewrite.
+    chosen: dict[str, tuple[float, str, str]] = {}  # lineage -> (score, new_text, from_text)
+    for row in rows:
+        lineage = bullets[row.id].lineage_id
+        if lineage not in head:
+            raise ValueError(
+                f"suggestion {row.id!r} bullet lineage {lineage!r} is not in base version "
+                f"{base_id!r}"
+            )
+        score = row.integrity_score or 0.0
+        if lineage not in chosen or score > chosen[lineage][0]:
+            chosen[lineage] = (score, row.suggested_text, head[lineage].current_text)
+
+    new_version = create_child_version(
+        session,
+        parent_version_id=base_id,
+        version_type=VersionType.accepted,
+        edits={lineage: new_text for lineage, (_s, new_text, _f) in chosen.items()},
+    )
+    new_by_lineage = bullets_by_lineage(session, new_version.id)
+    for lineage, (_score, _new_text, from_text) in chosen.items():
+        new_bullet = new_by_lineage[lineage]
+        repo.log_edit(
+            session,
+            bullet_id=new_bullet.id,
+            action=_ACTION_ACCEPT,
+            actor=_ACTOR_USER,
+            from_text=from_text,
+            to_text=new_bullet.current_text,
+        )
+    for row in rows:
+        row.status = SuggestionStatus.accepted.value
+    _reembed(session, new_version, embedder=embedder, collection=collection)
+    session.commit()
+    return ReviewOutcome(_ACTION_ACCEPT, rows[0], new_version, created_version=True)
+
+
 def reject_suggestion(
     session: Session,
     *,
