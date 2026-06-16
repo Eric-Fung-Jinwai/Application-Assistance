@@ -1,0 +1,10 @@
+# Pin the app to a single light (warm-cream) theme — no auto dark mode, no theme switcher
+# following the OS. Mirrors the DESIGN.md cream + coral palette so native Streamlit widgets
+# match the injected CSS.
+[theme]
+base = "light"
+primaryColor = "#cc785c"
+backgroundColor = "#faf9f5"
+secondaryBackgroundColor = "#efe9de"
+textColor = "#141413"
+font = "sans serif"

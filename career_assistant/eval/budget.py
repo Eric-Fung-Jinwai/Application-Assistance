@@ -41,6 +41,18 @@ COMPLETION_LATENCY_S = 3.0
 HOSTED_EMBED_LATENCY_S = 0.4  # one batched API round-trip
 LOCAL_EMBED_LATENCY_S = 0.05  # local sentence-transformers, per item
 
+_LOCAL_EMBEDDING_PROVIDERS = {"huggingface", "hf", "sentence-transformers", "sentence_transformers"}
+
+
+def is_local_embedding(provider: str) -> bool:
+    """Whether the embedding provider runs locally (free per token)."""
+    return provider.lower().strip() in _LOCAL_EMBEDDING_PROVIDERS
+
+
+def embedding_label(provider: str, model: str) -> str:
+    """Human label for the embedding line ('… (local, $0)' for local providers)."""
+    return f"{model} (local, $0)" if is_local_embedding(provider) else model
+
 
 @dataclass
 class ApplicationProfile:
@@ -143,9 +155,7 @@ def render(summary: Summary, *, n_jds: int, llm_model: str, embedding_label: str
     lines.append(f"completion model : {llm_model}")
     lines.append(f"embeddings       : {embedding_label}")
     if llm_model not in COMPLETION_PRICING:
-        lines.append(
-            f"  !! no pricing for {llm_model!r} — add it to llm/pricing.py for $ totals"
-        )
+        lines.append(f"  !! no pricing for {llm_model!r} — add it to llm/pricing.py for $ totals")
     lines.append("-" * 74)
     lines.append(f"{'item':<38}{'kind':<12}{'calls':>6}{'cost':>10}{'lat(s)':>8}")
     lines.append("-" * 74)
@@ -187,31 +197,18 @@ def main(argv: list[str] | None = None) -> None:
         n_tailored=args.tailored,
         jds_per_resume=args.jds_per_resume,
     )
-    provider = settings.embedding_provider.lower().strip()
-    embedding_is_local = provider in {
-        "huggingface",
-        "hf",
-        "sentence-transformers",
-        "sentence_transformers",
-    }
-    embedding_label = (
-        f"{settings.embedding_model} (local, $0)"
-        if embedding_is_local
-        else settings.embedding_model
-    )
-
     summary = build_summary(
         profile,
         llm_model=settings.llm_model,
         embedding_model=settings.embedding_model,
-        embedding_is_local=embedding_is_local,
+        embedding_is_local=is_local_embedding(settings.embedding_provider),
     )
     print(
         render(
             summary,
             n_jds=args.jds,
             llm_model=settings.llm_model,
-            embedding_label=embedding_label,
+            embedding_label=embedding_label(settings.embedding_provider, settings.embedding_model),
         )
     )
 

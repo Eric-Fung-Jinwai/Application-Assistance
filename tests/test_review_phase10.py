@@ -13,6 +13,7 @@ from career_assistant.domain import IntegrityBand, SuggestionStatus, VersionType
 from career_assistant.llm.client import EmbeddingClient, LLMClient
 from career_assistant.review import (
     accept_suggestion,
+    accept_suggestions,
     build_review_payload,
     customize_suggestion,
     refine_suggestion,
@@ -181,6 +182,48 @@ def test_accept_reembeds_new_version_when_collection_given(session, tmp_path):
         resume_version_id=outcome.version.id,
     )
     assert res["ids"][0]  # at least one indexed bullet for the new head
+
+
+# --- accept all (batch) ----------------------------------------------------------
+
+
+def test_accept_all_applies_every_edit_into_one_version(session):
+    _, v1, bullets, s0 = _seed(session)
+    s1 = repo.create_suggestion(
+        session,
+        bullet_id=bullets[1].id,
+        jd_id=s0.jd_id,
+        suggested_text="Drove the Docker migration",
+        status=SuggestionStatus.pending,
+        integrity_band=IntegrityBand.safe,
+    )
+    session.commit()
+
+    outcome = accept_suggestions(session, suggestion_ids=[s0.id, s1.id], base_version_id=v1.id)
+
+    # One accepted child off v1 carries BOTH edits — not two separate versions.
+    assert outcome.created_version
+    assert outcome.version.parent_version_id == v1.id
+    assert [v.id for v in version_chain(session, outcome.version.id)] == [v1.id, outcome.version.id]
+    texts = {b.current_text for b in repo.list_bullets(session, outcome.version.id)}
+    assert s0.suggested_text in texts and "Drove the Docker migration" in texts
+    # Both suggestions decided, one edit logged per applied bullet.
+    assert session.get(TailoringSuggestionRow, s0.id).status == "accepted"
+    assert session.get(TailoringSuggestionRow, s1.id).status == "accepted"
+    assert [e.action for e in session.scalars(select(EditHistory))].count("accept") == 2
+
+
+def test_accept_all_rejects_a_decided_suggestion(session):
+    _, v1, _, s0 = _seed(session)
+    accept_suggestion(session, suggestion_id=s0.id, base_version_id=v1.id)
+    with pytest.raises(ValueError, match="not pending"):
+        accept_suggestions(session, suggestion_ids=[s0.id], base_version_id=v1.id)
+
+
+def test_accept_all_requires_at_least_one(session):
+    _seed(session)
+    with pytest.raises(ValueError, match="no suggestions"):
+        accept_suggestions(session, suggestion_ids=[])
 
 
 # --- reject ----------------------------------------------------------------------

@@ -210,7 +210,7 @@ def generate_suggestions(
             embedder=embedder,
         )
         integrity = suggestion.integrity
-        repo.create_suggestion(
+        row_db = repo.create_suggestion(
             session,
             bullet_id=bullet_id,
             jd_id=jid,
@@ -223,7 +223,9 @@ def generate_suggestions(
             integrity_flags=integrity.unsupported() if integrity else None,
             status=suggestion.status,
         )
-        suggestions.append(suggestion)
+        # Return the persisted row's id as the canonical one, so callers (API /review,
+        # Phase 13 UI) act on the suggestion that actually exists in the DB.
+        suggestions.append(suggestion.model_copy(update={"id": row_db.id}))
     return suggestions
 
 
