@@ -28,7 +28,7 @@ from pathlib import Path
 
 from career_assistant.domain import IntegrityBand, ParsedJD, ParsedResume
 from career_assistant.fit import score_fit
-from career_assistant.llm.client import EmbeddingClient
+from career_assistant.llm.client import EmbeddingClient, LLMClient
 from career_assistant.tailor.integrity import band_for_score, compute_integrity_score
 
 DATASETS_DIR = Path(__file__).parent / "datasets"
@@ -61,6 +61,12 @@ class FitRow:
 
 def load_fit_pairs() -> list[dict]:
     return json.loads((DATASETS_DIR / "fit_pairs.json").read_text())
+
+
+def load_benchmark_pairs() -> list[dict]:
+    """Load the larger hand-labeled benchmark set (empty until labeled via ``eval.label``)."""
+    path = DATASETS_DIR / "fit_pairs_benchmark.json"
+    return json.loads(path.read_text()) if path.exists() else []
 
 
 def evaluate_fit(pairs: list[dict], *, embedder: EmbeddingClient | None = None) -> list[FitRow]:
@@ -117,14 +123,8 @@ def _is_flagged(
     return band_for_score(score, aggressive=aggressive) == FLAGGED_BAND
 
 
-def evaluate_integrity(
-    cases: list[dict],
-    *,
-    w_llm: float | None = None,
-    w_embed: float | None = None,
-    aggressive: int | None = None,
-) -> IntegrityMetrics:
-    """Precision/recall of 'flag as fabrication' against the labels.
+def _metrics_from_flags(cases: list[dict], flagged: list[bool]) -> IntegrityMetrics:
+    """Tally precision/recall given a parallel ``flagged`` verdict per case.
 
     Positive class = a planted fabrication. ``recall`` is the share of fabrications
     caught (the metric the regression gate watches); ``precision`` is how many flagged
@@ -133,21 +133,59 @@ def evaluate_integrity(
     tp = fp = fn = 0
     missed: list[str] = []
     false_alarms: list[str] = []
-    for case in cases:
+    for case, is_flagged in zip(cases, flagged, strict=True):
         is_fabrication = case["label"] == FABRICATION_LABEL
-        flagged = _is_flagged(case, w_llm=w_llm, w_embed=w_embed, aggressive=aggressive)
-        if is_fabrication and flagged:
+        if is_fabrication and is_flagged:
             tp += 1
-        elif is_fabrication and not flagged:
+        elif is_fabrication and not is_flagged:
             fn += 1
             missed.append(case["name"])
-        elif not is_fabrication and flagged:
+        elif not is_fabrication and is_flagged:
             fp += 1
             false_alarms.append(case["name"])
 
     precision = tp / (tp + fp) if (tp + fp) else 1.0
     recall = tp / (tp + fn) if (tp + fn) else 1.0
     return IntegrityMetrics(precision, recall, tp, fp, fn, missed, false_alarms)
+
+
+def evaluate_integrity(
+    cases: list[dict],
+    *,
+    w_llm: float | None = None,
+    w_embed: float | None = None,
+    aggressive: int | None = None,
+) -> IntegrityMetrics:
+    """Offline precision/recall using the **cached** ``(llm_judgment, embedding_similarity)``
+    in the dataset — no LLM call, so it can gate every formula/cutoff change deterministically.
+    """
+    flagged = [
+        _is_flagged(case, w_llm=w_llm, w_embed=w_embed, aggressive=aggressive) for case in cases
+    ]
+    return _metrics_from_flags(cases, flagged)
+
+
+def evaluate_integrity_live(
+    cases: list[dict],
+    *,
+    llm: LLMClient | None = None,
+    embedder: EmbeddingClient | None = None,
+) -> IntegrityMetrics:
+    """Live precision/recall: run the **real** Phase 8 judge end-to-end on each case's
+    ``(source → tailored)`` text instead of the cached signals.
+
+    This is the regression check the offline path can't give you — it exercises the live
+    ``JUDGE_SYSTEM`` prompt + parsing + embedding pipeline, so a prompt edit that quietly
+    stops catching a planted fabrication trips the same recall gate. Defaults to the
+    configured providers (real API/model); pass fakes to keep a test hermetic.
+    """
+    from career_assistant.tailor.integrity import judge_integrity
+
+    flagged: list[bool] = []
+    for case in cases:
+        result = judge_integrity(case["source"], case["tailored"], llm=llm, embedder=embedder)
+        flagged.append(result.band == FLAGGED_BAND)
+    return _metrics_from_flags(cases, flagged)
 
 
 # --- Weight / cutoff sweep ----------------------------------------------------------
@@ -190,9 +228,9 @@ def sweep_integrity(cases: list[dict]) -> SweepResult:
 # --- CLI ----------------------------------------------------------------------------
 
 
-def _print_fit(rows: list[FitRow]) -> float:
+def _print_fit(rows: list[FitRow], *, title: str = "Fit bands") -> float:
     acc = fit_accuracy(rows)
-    print("\n== Fit bands ==")
+    print(f"\n== {title} ==")
     print(f"{'pair':<26}{'role':<9}{'expected':<10}{'predicted':<10}{'overall':>8}  ok")
     for r in rows:
         print(
@@ -216,13 +254,37 @@ def _print_integrity(m: IntegrityMetrics) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Phase 16 evaluation harness")
     parser.add_argument("--sweep", action="store_true", help="grid-search integrity weights/cutoff")
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="run the real LLM judge end-to-end (uses configured provider; needs API access)",
+    )
+    parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="also score the larger hand-labeled benchmark set (fit_pairs_benchmark.json)",
+    )
     args = parser.parse_args(argv)
 
     fit_rows = evaluate_fit(load_fit_pairs())
     acc = _print_fit(fit_rows)
 
+    bench_acc: float | None = None
+    if args.benchmark:
+        bench = load_benchmark_pairs()
+        if bench:
+            bench_acc = _print_fit(
+                evaluate_fit(bench), title=f"Fit bands — benchmark ({len(bench)} pairs)"
+            )
+        else:
+            print("\n(benchmark: fit_pairs_benchmark.json is empty — label pairs via eval.label)")
+
     fabrications = load_fabrications()
-    metrics = evaluate_integrity(fabrications)
+    if args.live:
+        print("\n(live mode: invoking the real integrity judge per case)")
+        metrics = evaluate_integrity_live(fabrications)
+    else:
+        metrics = evaluate_integrity(fabrications)
     _print_integrity(metrics)
 
     if args.sweep:
@@ -239,6 +301,8 @@ def main(argv: list[str] | None = None) -> int:
     failures: list[str] = []
     if acc < FIT_ACCURACY_MIN:
         failures.append(f"fit accuracy {acc:.0%} < {FIT_ACCURACY_MIN:.0%}")
+    if bench_acc is not None and bench_acc < FIT_ACCURACY_MIN:
+        failures.append(f"benchmark fit accuracy {bench_acc:.0%} < {FIT_ACCURACY_MIN:.0%}")
     if metrics.recall < INTEGRITY_MIN_RECALL:
         failures.append(f"integrity recall {metrics.recall:.0%} < {INTEGRITY_MIN_RECALL:.0%}")
 

@@ -14,6 +14,7 @@ from career_assistant.api.app import create_app
 from career_assistant.llm.client import EmbeddingClient, LLMClient
 from career_assistant.ui import theme
 from career_assistant.ui.api_client import ApiClient, ApiError
+from career_assistant.ui.app import _apply_new_jd
 
 RESUME_TEXT = """Jane Doe
 Senior Software Engineer
@@ -185,3 +186,40 @@ def test_esc_md_neutralizes_markdown_metacharacters():
     assert theme.esc_md("_NET") == r"\_NET"
     assert theme.esc_md("a*b") == r"a\*b"
     assert theme.esc_md("[x](y)") == r"\[x\]\(y\)"
+
+
+# --- multi-JD workflow (one resume, many jobs) -----------------------------------
+
+
+def test_new_jd_keeps_resume_rewinds_head_and_clears_jd_state():
+    # The "tailor another job" loop: after accepting edits for job 1 (head advanced), starting a
+    # new JD must rewind to the ORIGINAL resume and drop the previous job's JD/tailoring state.
+    state = {
+        "resume_version_id": "rv-original",
+        "resume_id": "r0",
+        "resume_parsed": {"skills": ["Python"]},
+        "head_version_id": "rv-tailored-for-job1",  # advanced by accepting job-1 edits
+        "jd_id": "jd1",
+        "jd_parsed": {"required_skills": ["Go"]},
+        "suggestions": [{"id": "s1"}],
+        "done_ids": {"s1"},
+    }
+    _apply_new_jd(state)
+
+    # Resume is preserved...
+    assert state["resume_version_id"] == "rv-original"
+    assert state["resume_id"] == "r0"
+    assert state["resume_parsed"] == {"skills": ["Python"]}
+    # ...the working head rewinds to the clean original (not job-1's edits)...
+    assert state["head_version_id"] == "rv-original"
+    # ...and all JD/tailoring state is cleared.
+    for key in ("jd_id", "jd_parsed", "suggestions", "done_ids"):
+        assert key not in state
+
+
+def test_new_jd_without_resume_is_noop_safe():
+    # Defensive: clearing JD state before a resume exists must not invent a head version.
+    state = {"jd_id": "jd1"}
+    _apply_new_jd(state)
+    assert "jd_id" not in state
+    assert "head_version_id" not in state

@@ -15,9 +15,6 @@ from career_assistant.ui import theme
 from career_assistant.ui.api_client import ApiClient, ApiError
 from career_assistant.ui.theme import esc, esc_md
 
-st.set_page_config(page_title="Career Assistant", page_icon="✳", layout="wide")
-st.markdown(theme.build_css(), unsafe_allow_html=True)
-
 
 def get_client() -> ApiClient:
     if "api_client" not in st.session_state:
@@ -140,7 +137,7 @@ def section_jd() -> None:
             unsafe_allow_html=True,
         )
         if st.button("Analyze a different JD"):
-            _reset_from("jd_id")
+            _reset_jd()
             st.rerun()
         return
 
@@ -350,6 +347,12 @@ def section_export() -> None:
                 "Download PDF", data=pdf, file_name=f"resume_{template}.pdf", mime="application/pdf"
             )
 
+    # Close the loop: tailor the SAME resume for the next job without re-uploading.
+    st.divider()
+    if st.button("📋 Tailor for another job — keep my resume"):
+        _reset_jd()
+        st.rerun()
+
 
 def _reset_from(*keys: str) -> None:
     """Clear a step and everything downstream of it so the flow stays consistent."""
@@ -366,6 +369,28 @@ def _reset_from(*keys: str) -> None:
     start = downstream.index(keys[0])
     for key in downstream[start:]:
         st.session_state.pop(key, None)
+
+
+# Session keys scoped to one JD pass — cleared when starting another job.
+_JD_STATE_KEYS = ("jd_id", "jd_parsed", "suggestions", "done_ids")
+
+
+def _apply_new_jd(state) -> None:
+    """Start a fresh JD against the SAME uploaded resume.
+
+    Clears the JD + tailoring state and rewinds the working head back to the *original* uploaded
+    resume version, so every job tailors from the clean resume rather than the previous job's
+    accepted edits. Pure (operates on the given mapping) so it is unit-testable without Streamlit.
+    """
+    for key in _JD_STATE_KEYS:
+        state.pop(key, None)
+    original = state.get("resume_version_id")
+    if original:
+        state["head_version_id"] = original
+
+
+def _reset_jd() -> None:
+    _apply_new_jd(st.session_state)
 
 
 def sidebar_budget() -> None:
@@ -393,6 +418,10 @@ def sidebar_budget() -> None:
 
 
 def main() -> None:
+    # set_page_config must be the first Streamlit call; keep it here (not at import) so the
+    # module stays import-safe for tests. Streamlit reruns main() top-to-bottom each interaction.
+    st.set_page_config(page_title="Career Assistant", page_icon="✳", layout="wide")
+    st.markdown(theme.build_css(), unsafe_allow_html=True)
     sidebar_budget()
     header()
     section_upload()
@@ -410,4 +439,5 @@ def main() -> None:
     section_export()
 
 
-main()
+if __name__ == "__main__":  # Streamlit runs the script as __main__; import stays side-effect-free.
+    main()

@@ -3,6 +3,8 @@ a regression that lets a planted fabrication through fails the run."""
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 from pydantic import ValidationError
 
@@ -12,12 +14,14 @@ from career_assistant.eval.harness import (
     FIT_ACCURACY_MIN,
     evaluate_fit,
     evaluate_integrity,
+    evaluate_integrity_live,
     fit_accuracy,
     load_fabrications,
     load_fit_pairs,
     main,
     sweep_integrity,
 )
+from career_assistant.llm.client import EmbeddingClient, LLMClient
 from career_assistant.tailor.integrity import band_for_score, compute_integrity_score
 
 # --- fit-band evaluation ---------------------------------------------------------
@@ -104,6 +108,71 @@ def test_regression_lets_fabrication_through_drops_recall():
     m = evaluate_integrity(cases)
     assert m.recall < 1.0
     assert "sneaky_fab" in m.missed
+
+
+# --- live judge mode (end-to-end, hermetic with fakes) ---------------------------
+
+
+class _BagOfWordsEmbedder(EmbeddingClient):
+    """Deterministic embedder — shared tokens → cosine overlap (faithful rewrites stay close
+    to their source, fabrications drift away)."""
+
+    DIM = 64
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        out = []
+        for text in texts:
+            v = [0.0] * self.DIM
+            for tok in text.lower().split():
+                v[int(hashlib.md5(tok.encode()).hexdigest(), 16) % self.DIM] += 1.0
+            if not any(v):
+                v[0] = 1.0
+            out.append(v)
+        return out
+
+
+class _DatasetJudgeLLM(LLMClient):
+    """Replays each case's labeled judge verdict, keyed by the tailored text — so the live
+    pipeline (prompt build, JSON parse, flag-capping, banding) runs for real while the model
+    output is fixed. A prompt change that broke parsing/capping would still trip the gate."""
+
+    def __init__(self, cases: list[dict]):
+        self._by_tailored = {c["tailored"]: c for c in cases}
+
+    def complete(self, system, user, *, json_schema=None, temperature=0.2):
+        case = next(c for t, c in self._by_tailored.items() if t in user)
+        payload = {"grounded": case["llm_judgment"]}
+        for field in (
+            "unsupported_claims",
+            "unsupported_technologies",
+            "unsupported_metrics",
+            "unsupported_responsibilities",
+        ):
+            if field in case:
+                payload[field] = case[field]
+        return payload
+
+
+def test_live_integrity_matches_labels_end_to_end():
+    cases = load_fabrications()
+    m = evaluate_integrity_live(cases, llm=_DatasetJudgeLLM(cases), embedder=_BagOfWordsEmbedder())
+    assert m.recall == 1.0  # every planted fabrication caught by the real judge path
+    assert m.precision == 1.0  # no faithful rewrite flagged
+    assert m.missed == []
+    assert m.false_alarms == []
+
+
+def test_live_mode_catches_a_judge_prompt_regression():
+    # Simulate a judge that regressed into rubber-stamping everything as grounded: the
+    # live recall gate must fall below 1.0 even though the offline cached signals are clean.
+    class _RubberStampLLM(LLMClient):
+        def complete(self, system, user, *, json_schema=None, temperature=0.2):
+            return {"grounded": 1.0}
+
+    cases = load_fabrications()
+    m = evaluate_integrity_live(cases, llm=_RubberStampLLM(), embedder=_BagOfWordsEmbedder())
+    assert m.recall < 1.0
+    assert m.missed  # named fabrications slipped through
 
 
 # --- sweep -----------------------------------------------------------------------

@@ -25,3 +25,8 @@ venv/
 *.log
 TECHNICAL_TODO.md
 TODO_Evidence_Aware_Career_Application_Assistant.md
+fit_pairs_benchmark.json
+
+# Personal benchmark labeling input (resume/JD text — not committed)
+scratch/
+examples
